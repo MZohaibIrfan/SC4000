@@ -10,13 +10,16 @@
 
 \title{SC4000 Course Project \\ Google -- Fast or Slow? Predict AI Model Runtime}
 \author{
-  Muhammad Zohaib Irfan | Tile Model \\
-  Zheng Andy | Layout Model
+  Muhammad Zohaib Irfan | Tile Model and Partial Design of Architecture of Layout \\
+  Zheng Andy  | Layout Model Architecture Experimentation and Training
 }
 \date{\today}
 
 \begin{document}
 \maketitle
+\begin{center}
+  	\textbf{Repository:} \url{https://github.com/MZohaibIrfan/SC4000}
+\end{center}
 
 \section{Competition Overview}
 The competition ``Google -- Fast or Slow? Predict AI Model Runtime'' requires
@@ -81,7 +84,7 @@ Secondly, we only extract the first 1000 configurations for each layout collecti
 Although this may lead to loss of information, it significantly reduces the memory usage and time to load data.
 The test set keeps all the configurations since we need to output the sorted list of all configurations. \\ \\
 Thirdly, to enhance model convergence, normalization is applied to \texttt{node\_feat}, \texttt{node\_opcode}.
-For \texttt{config\_runtime}, min-max scaling is applied.
+For \texttt{config\_runtime}, min-max scaling is applied, this is to avoid large variance and to reduce any variable dominating.
 
 \section{Layout Model Architecture}
 \begin{figure}[ht]
@@ -156,6 +159,14 @@ Training-time standardization uses train-only statistics to prevent data leakage
 \]
 
 \section{Model Architecture}
+
+\subsection{Tile Model Architecture Diagram}
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{assets/Tile_model.png}
+  \caption{Tile model architecture overview}
+  \label{fig:tile_model}
+\end{figure}
 
 \subsection{Why an MLP?}
 Tile representations are tabular and low-dimensional after summarization. A multi-layer perceptron offers sufficient expressiveness without requiring graph message passing.
@@ -238,7 +249,7 @@ We experimented with deeper architectures (4--6 layers). However, these models c
 
 \section{Overall Results}
 We combined the tile and layout submission csv files to create the final submission for the competition.
-This resulted in us achieving a final score of 0.61426 on the public leaderboard, ranking 58 out of 617 participants.
+This resulted in us achieving a final score of 0.61426 on the public leaderboard, ranking 58 out of 617 participants. This placed us in the top 10\% of all competitors in this compeetition.
 \begin{figure}[!htb]
   \centering
   \includegraphics[width=\linewidth]{assets/leaderboard.png}
