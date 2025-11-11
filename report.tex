@@ -18,7 +18,7 @@
 \begin{document}
 \maketitle
 \begin{center}
-  	\textbf{Repository:} \url{https://github.com/MZohaibIrfan/SC4000}
+  \textbf{Repository:} \url{https://github.com/MZohaibIrfan/SC4000}
 \end{center}
 
 \section{Competition Overview}
@@ -64,75 +64,11 @@ The dataset contains the following keys:
   \item \texttt{node\_opcode} $\in \mathbb{Z}^{n}$: opcode (int32) for each node
   \item \texttt{edge\_index} $\in \mathbb{Z}^{m\times 2}$: directed edges $[u,v]$ meaning $u \leftarrow v$
   \item \texttt{node\_config\_ids} $\in \mathbb{Z}^{nc}$: indices for configurable nodes.
-  \item \texttt{node\_config\_feat} $\in \mathbb{R}^{c\times nc \times 24}$: node configuration for each configuration. Specifically, for entry $[j,k]$, it gives the 24-dim feature vector for the configurable node with index $k$ under configuration $j$.
+  \item \texttt{node\_config\_feat} $\in \mathbb{R}^{c\times nc \times 18}$: node configuration for each configuration. Specifically, for entry $[j,k]$, it gives the 18-dim feature vector for the configurable node with index $k$ under configuration $j$.
   \item \texttt{config\_runtime} $\in \mathbb{Z}^{c}$: runtime (ns)
 \end{itemize}
 
-\section{Challenges of Layout Dataset}
-The main difference between the tile and layout dataset is that \texttt{node\_config\_feat} key being a 3D matrix,
-while the \texttt{config\_feat} key is a 2D matrix.
-For some layout collections, there could be up to 100000 configurations per graph with more than 100 configurable nodes,
-making it infeasible to load the entire \texttt{node\_config\_feat} into memory. \\ \\
-Furthermore, the output needs to be a sorted list of all configurations based on predicted runtime,
-which is more challenging than just predicting the top-K configurations as in the tile dataset. \\ \\
-
-\section{Layout Data Pre-processing}
-Due to limited memory, data must be compressed before training. \\ \\
-Firstly, nodes can be configurable or non-configurable. Non-configurable nodes have identical features across all configurations,
-Hence, we only extract the features of configurable nodes by using \texttt{node\_config\_ids} to index into \texttt{node\_feat}, \texttt{node\_opcode}. \\ \\
-Secondly, we only extract the first 1000 configurations for each layout collection.
-Although this may lead to loss of information, it significantly reduces the memory usage and time to load data.
-The test set keeps all the configurations since we need to output the sorted list of all configurations. \\ \\
-Thirdly, to enhance model convergence, normalization is applied to \texttt{node\_feat}, \texttt{node\_opcode}.
-For \texttt{config\_runtime}, min-max scaling is applied, this is to avoid large variance and to reduce any variable dominating.
-
-\section{Layout Model Architecture}
-\begin{figure}[ht]
-  \centering
-  \includegraphics[width=\linewidth]{assets/layout_model.png}
-  \caption{Layout model architecture: Note that node features only contains configurable nodes. Hence node\_opcode and node\_feat have length nc instead of n}
-  \label{fig:layout_model}
-\end{figure}
-
-For the layout dataset, we use a simple MLP architecture.
-The model takes in three inputs: \texttt{node\_feat}, \texttt{node\_opcode}, and \texttt{node\_config\_feat}. \\ \\
-\texttt{node\_opcode} is first passed through an embedding layer to get a dense representation.
-Then, we concatenate all features.
-The concatenated features are passed through two linear layers with ReLU activation.
-Then, we extract the mean, max and standard deviation across all nodes.
-These statistics are concatenated before being passed through another two linear layers with ReLU activation.
-Finally, the output is passed through a linear layer to get the predicted runtime for each configuration. \\ \\
-
-\section{Layout Training Setup}
-\begin{itemize}[leftmargin=*]
-  \item \textbf{Optimizer:} Adam with learning rate $\text{lr}=10^{-3}$ and weight decay $\text{wd}=10^{-4}$
-  \item \textbf{Scheduler:} Cosine Annealing
-  \item \textbf{Loss function:} RankNet loss
-  \item \textbf{Batch size:} 1
-  \item \textbf{Epochs:} 200
-\end{itemize}
-
-\section{Layout Analysis}
-The above setup achieved the best result. However, we have also experimented with other configurations. \\ \\
-For the loss function, we have experimented with MSE loss or L1 loss. However, the model would output equal runtimes for all configurations,
-leading to random ordering and poor performance on the leaderboard.
-This is likely due to the fact that the loss function only cares about minimizing the difference between predicted and actual runtimes,
-rather than the relative ordering of configurations. RankNet loss solves this issue by directly optimizing for the ordering. \\ \\
-For the model architecture, we have explored different MLP configurations, including varying the number of layers and hidden units.
-However, these changes did not lead to significant improvements in performance. \\ \\
-For the number of epochs, we found that increasing the number of epochs did yield better results. And adding an early stopper did not help. \\ \\
-
-\section{Layout Model Limitations and Future Work}
-While the current layout model achieves reasonable performance, there are several limitations and areas for future improvement. \\ \\
-Firstly, the model does not fully utilize the graph structure of the data. Only node features are used, while edge information is ignored.
-In future work, we could explore graph neural networks (GNNs) to better capture the relationships between nodes and edges. \\ \\
-Secondly, the model currently only considers the first 1000 configurations due to memory constraints.
-Future work could investigate more efficient data loading and processing techniques to handle larger numbers of configurations. \\ \\
-Thirdly, hyperparameter tuning could be further optimized using techniques such as Bayesian optimization or grid search. \\ \\
-Fourthly, ensemble methods could be explored to combine predictions from multiple models. \\ \\
-Lastly, incorporating domain knowledge about TPU compilation and execution could help inform feature engineering and model design.
-
-\section{Feature Engineering (Tile Only)}
+\section{Tile Feature Engineering}
 
 For each program $i$ and configuration $j$, we construct a feature vector:
 \[
@@ -158,7 +94,7 @@ Training-time standardization uses train-only statistics to prevent data leakage
   x' = \frac{x - \mu_{\text{train}}}{\sigma_{\text{train}} + \varepsilon}.
 \]
 
-\section{Model Architecture}
+\section{Tile Model Architecture}
 
 \subsection{Tile Model Architecture Diagram}
 \begin{figure}[ht]
@@ -189,7 +125,7 @@ Let $x \in \mathbb{R}^{32}$. Our model consists of three layers:
 
 \paragraph{Dropout:} The tile dataset is large, but many configuration features are correlated. Dropout (rate 0.1) mitigates co-adaptation and improves generalization to unseen graphs.
 
-\section{Training Setup}
+\section{Tile Training Setup}
 
 \begin{itemize}[leftmargin=*]
   \item \textbf{Optimizer:} AdamW with learning rate $\text{lr}=10^{-3}$ and weight decay $\text{wd}=10^{-5}$
@@ -221,7 +157,7 @@ Raw predicted magnitudes differ across programs, but only \emph{relative orderin
 \]
 This enforces consistent scaling across programs and empirically improves Acc@1.
 
-\section{Results}
+\section{Tile Results}
 
 \subsection{Validation Performance}
 The model achieves the following metrics on the validation set:
@@ -246,6 +182,70 @@ Averaged across all three random seeds, the model exhibits stable convergence:
 
 \subsection{Ablation Study: Model Depth}
 We experimented with deeper architectures (4--6 layers). However, these models consistently achieved worse performance on the leaderboard compared to the 3-layer baseline. We therefore retain the 3-layer MLP as our final architecture.
+
+\section{Challenges of Layout Dataset}
+The main difference between the tile and layout dataset is that \texttt{node\_config\_feat} key being a 3D matrix,
+while the \texttt{config\_feat} key is a 2D matrix.
+For some layout collections, there could be up to 100000 configurations per graph with more than 100 configurable nodes,
+making it infeasible to load the entire \texttt{node\_config\_feat} into memory. \\ \\
+Furthermore, the output needs to be a sorted list of all configurations based on predicted runtime,
+which is more challenging than just predicting the top-K configurations as in the tile dataset.
+
+\section{Layout Data Pre-processing}
+Due to limited memory, data must be compressed before training. \\ \\
+Firstly, nodes can be configurable or non-configurable. Non-configurable nodes have identical features across all configurations,
+Hence, we only extract the features of configurable nodes by using \texttt{node\_config\_ids} to index into \texttt{node\_feat}, \texttt{node\_opcode}. \\ \\
+Secondly, we only extract the first 1000 configurations for each layout collection.
+Although this may lead to loss of information, it significantly reduces the memory usage and time to load data.
+The test set keeps all the configurations since we need to output the sorted list of all configurations. \\ \\
+Thirdly, to enhance model convergence, normalization is applied to \texttt{node\_feat}, \texttt{node\_opcode}.
+For \texttt{config\_runtime}, min-max scaling is applied, this is to avoid large variance and to reduce any variable dominating.
+
+\section{Layout Model Architecture}
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{assets/layout_model.png}
+  \caption{Layout model architecture: Note that node features only contains configurable nodes. Hence node\_opcode and node\_feat have length nc instead of n}
+  \label{fig:layout_model}
+\end{figure}
+
+For the layout dataset, we use a simple MLP architecture.
+The model takes in three inputs: \texttt{node\_feat}, \texttt{node\_opcode}, and \texttt{node\_config\_feat}. \\ \\
+\texttt{node\_opcode} is first passed through an embedding layer to get a dense representation.
+Then, we concatenate all features.
+The concatenated features are passed through two linear layers with ReLU activation.
+Then, we extract the mean, max and standard deviation across all nodes.
+These statistics are concatenated before being passed through another two linear layers with ReLU activation.
+Finally, the output is passed through a linear layer to get the predicted runtime for each configuration.
+
+\section{Layout Training Setup}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Optimizer:} Adam with learning rate $\text{lr}=10^{-3}$ and weight decay $\text{wd}=10^{-4}$
+  \item \textbf{Scheduler:} Cosine Annealing
+  \item \textbf{Loss function:} RankNet loss
+  \item \textbf{Batch size:} 1
+  \item \textbf{Epochs:} 200
+\end{itemize}
+
+\section{Layout Analysis}
+The above setup achieved the best result. However, we have also experimented with other configurations. \\ \\
+For the loss function, we have experimented with MSE loss or L1 loss. However, the model would output equal runtimes for all configurations,
+leading to random ordering and poor performance on the leaderboard.
+This is likely due to the fact that the loss function only cares about minimizing the difference between predicted and actual runtimes,
+rather than the relative ordering of configurations. RankNet loss solves this issue by directly optimizing for the ordering. \\ \\
+For the model architecture, we have explored different MLP configurations, including varying the number of layers and hidden units.
+However, these changes did not lead to significant improvements in performance. \\ \\
+For the number of epochs, we found that increasing the number of epochs did yield better results. And adding an early stopper did not help.
+
+\section{Layout Model Limitations and Future Work}
+While the current layout model achieves reasonable performance, there are several limitations and areas for future improvement. \\ \\
+Firstly, the model does not fully utilize the graph structure of the data. Only node features are used, while edge information is ignored.
+In future work, we could explore graph neural networks (GNNs) to better capture the relationships between nodes and edges. \\ \\
+Secondly, the model currently only considers the first 1000 configurations due to memory constraints.
+Future work could investigate more efficient data loading and processing techniques to handle larger numbers of configurations. \\ \\
+Thirdly, hyperparameter tuning could be further optimized using techniques such as Bayesian optimization or grid search. \\ \\
+Fourthly, ensemble methods could be explored to combine predictions from multiple models. \\ \\
+Lastly, incorporating domain knowledge about TPU compilation and execution could help inform feature engineering and model design.
 
 \section{Overall Results}
 We combined the tile and layout submission csv files to create the final submission for the competition.
